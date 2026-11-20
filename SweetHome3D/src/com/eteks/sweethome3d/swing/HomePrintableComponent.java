@@ -55,6 +55,8 @@ import com.eteks.sweethome3d.viewcontroller.ContentManager;
 import com.eteks.sweethome3d.viewcontroller.HomeController;
 import com.eteks.sweethome3d.viewcontroller.PlanView;
 import com.eteks.sweethome3d.viewcontroller.View;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A printable component used to print or preview the furniture, the plan 
@@ -356,17 +358,35 @@ public class HomePrintableComponent extends JComponent implements Printable {
         furnitureFilter = furnitureTable.getFurnitureFilter();
         furnitureTable.setFurnitureFilter(new FurnitureTable.FurnitureFilter() {
             public boolean include(Home home, HomePieceOfFurniture piece) {
-              // Print only furniture at selected level when the plan or the 3D view is printed
+              /// Include furniture on every viewable level.
               return (furnitureFilter == null || furnitureFilter.include(home, piece))
-                  && piece.isAtLevel(selectedLevel)
-                  && (piece.getLevel() == null || piece.getLevel().isViewable());
+                      && (piece.getLevel() == null || piece.getLevel().isViewable());
             }
           });
       } else {
         furnitureFilter = null;
       }
       // Try to print next furniture view page      
-      pageExists = ((Printable)furnitureView).print(g2D, pageFormat, page);
+      List<HomePieceOfFurniture.SortableProperty> originalColumns =
+              this.home.getFurnitureVisibleProperties();
+
+      boolean addLevelColumn =
+              !originalColumns.contains(HomePieceOfFurniture.SortableProperty.LEVEL);
+
+      try {
+        if (addLevelColumn) {
+          List<HomePieceOfFurniture.SortableProperty> printColumns =
+                  new ArrayList<HomePieceOfFurniture.SortableProperty>(originalColumns);
+          printColumns.add(HomePieceOfFurniture.SortableProperty.LEVEL);
+          this.home.setFurnitureVisibleProperties(printColumns);
+        }
+
+        pageExists = ((Printable)furnitureView).print(g2D, pageFormat, page);
+      } finally {
+        if (addLevelColumn) {
+          this.home.setFurnitureVisibleProperties(originalColumns);
+        }
+      }
       if (furnitureTable != null) {
         // Restore previous filter
         ((FurnitureTable)furnitureView).setFurnitureFilter(furnitureFilter);
